@@ -430,7 +430,7 @@ The next thing to notice is the :attr:`~reframe.core.pipeline.RegressionTest.pre
 These commands will be executed from the test's stage directory.
 In this case, we just fetch the source code of the benchmark.
 For running the benchmark, we need to set the OpenMP number of threads and pin them to the right CPUs through the ``OMP_NUM_THREADS`` and ``OMP_PLACES`` environment variables.
-You can set environment variables in a ReFrame test through the :attr:`~reframe.core.pipeline.RegressionTest.env_vars` dictionary.
+You can set environment variables in a ReFrame test through the :attr:`~reframe.core.pipeline.RegressionTest.variables` dictionary.
 
 What makes a ReFrame test a performance test is the definition of at least one :ref:`performance function<deferrable-performance-functions>`.
 Similarly to a test's :func:`@sanity_function<reframe.core.pipeline.RegressionMixin.sanity_function>`, a performance function is a member function decorated with the :attr:`@performance_function<reframe.core.pipeline.RegressionMixin.performance_function>` decorator, which binds the decorated function to a given unit.
@@ -459,9 +459,7 @@ Let's run the test now:
 
    ./bin/reframe -c tutorials/basics/stream/stream1.py -r --performance-report
 
-The :option:`--performance-report` will generate a short report at the end of the run for each performance test that has run.
-Additionally, as soon as a performance test finishes, the obtained performance for each of the metrics is immediately reported.
-This is especially useful if you run long suites of performance exploration tests and you do not want to wait until the end of the run to have an overview of the obtained performance.
+The :option:`--performance-report` will generate a short report at the end for each performance test that has run.
 
 
 .. literalinclude:: listings/stream1.txt
@@ -625,7 +623,7 @@ This is what we do exactly with the :js:attr:`access` partition configuration op
 
    System partitions in ReFrame do not necessarily correspond to real job scheduler partitions.
 
-Piz Daint's programming environment offers four compilers: Cray, GNU, Intel and NVIDIA.
+Piz Daint's programming environment offers four compilers: Cray, GNU, Intel and PGI.
 We want to test all of them, so we include them in the :js:attr:`environs` lists.
 Notice that we do not include Clang in the list, since there is no such compiler on this particular system.
 On the other hand, we include a different version of the ``builtin`` environment, which corresponds to the default login environment without loading any modules.

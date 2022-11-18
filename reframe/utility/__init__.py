@@ -542,7 +542,7 @@ def shortest(*iterables):
     :arg iterables: The iterables to check.
     :returns: The shortest iterable.
 
-    .. _Sized: https://bit.ly/3QqJlmw
+    .. _Sized: https://docs.python.org/3/library/collections.abc.html#collections.abc.Sized # noqa: E501
     .. |Sized| replace:: :class:`Sized`
     '''
 
@@ -609,7 +609,7 @@ def find_modules(substr, environ_mapping=None):
        class MyTest(rfm.RegressionTest):
            module_info = parameter(find_modules('netcdf'))
 
-           @run_after('init')
+           @rfm.run_after('init')
            def apply_module_info(self):
                s, e, m = self.module_info
                self.valid_systems = [s]
@@ -635,7 +635,7 @@ def find_modules(substr, environ_mapping=None):
        class MyTest(rfm.RegressionTest):
            module_info = parameter(my_find_modules('GROMACS'))
 
-           @run_after('init')
+           @rfm.run_after('init')
            def apply_module_info(self):
                s, e, m = self.module_info
                self.valid_systems = [s]
@@ -923,64 +923,6 @@ def nodelist_abbrev(nodes):
         node_groups[ng].add(nid)
 
     return ','.join(str(ng) for ng in node_groups)
-
-
-def nodelist_expand(nodespec):
-    '''Expand the nodes in ``nodespec`` to a list of nodes.
-
-    :arg nodespec: A node specification as the one returned by
-        :func:`nodelist_abbrev`
-    :returns: The list of nodes corresponding to the given node specification.
-
-    .. versionadded:: 4.0.0
-    '''
-
-    if not isinstance(nodespec, str):
-        raise TypeError('nodespec argument must be a string')
-
-    if nodespec == '':
-        return []
-
-    nodespec_parts = nodespec.split(',')
-    node_patt = re.compile(r'(?P<prefix>.+)\[(?P<l>\d+)-(?P<u>\d+)\]')
-    nodes = []
-    for ns in nodespec_parts:
-        if '[' not in ns and ']' not in ns:
-            nodes.append(ns)
-            continue
-
-        match = node_patt.match(ns)
-        if not match:
-            raise ValueError(f'invalid nodespec: {nodespec}')
-
-        prefix = match.group('prefix')
-        low, upper = int(match.group('l')), int(match.group('u'))
-        width = count_digits(upper)
-        for nid in range(low, upper+1):
-            nodes.append(f'{prefix}{nid:0{width}}')
-
-    return nodes
-
-
-def cache_return_value(fn):
-    '''Decorator that caches the return value of the decorated function.
-
-    The function will only be called once and then the cached value will be
-    returned each time.
-    '''
-
-    undefined = []  # Any mutable object should do the job
-    cached = undefined
-
-    def _replace_fn(*args, **kwargs):
-        nonlocal cached
-
-        if cached is undefined:
-            cached = fn(*args, **kwargs)
-
-        return cached
-
-    return _replace_fn
 
 
 class temp_setattr:
@@ -1531,9 +1473,6 @@ class SequenceView(collections.abc.Sequence):
     def __str__(self):
         return str(self.__container)
 
-    def __rfm_json_encode__(self):
-        return self.__container
-
 
 class MappingView(collections.abc.Mapping):
     '''A read-only view of a mapping.
@@ -1596,6 +1535,3 @@ class MappingView(collections.abc.Mapping):
 
     def __str__(self):
         return str(self.__mapping)
-
-    def __rfm_json_encode__(self):
-        return self.__mapping

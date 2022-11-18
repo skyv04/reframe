@@ -11,13 +11,13 @@ import reframe.utility.sanity as sn
 @rfm.simple_test
 class StreamMultiSysTest(rfm.RegressionTest):
     valid_systems = ['*']
-    valid_prog_environs = ['cray', 'gnu', 'intel', 'nvidia']
+    valid_prog_environs = ['cray', 'gnu', 'intel', 'pgi']
     prebuild_cmds = [
         'wget https://raw.githubusercontent.com/jeffhammond/STREAM/master/stream.c'  # noqa: E501
     ]
     build_system = 'SingleSource'
     sourcepath = 'stream.c'
-    env_vars = {
+    variables = {
         'OMP_NUM_THREADS': '4',
         'OMP_PLACES': 'cores'
     }
@@ -35,7 +35,7 @@ class StreamMultiSysTest(rfm.RegressionTest):
         'cray':  ['-fopenmp', '-O3', '-Wall'],
         'gnu':   ['-fopenmp', '-O3', '-Wall'],
         'intel': ['-qopenmp', '-O3', '-Wall'],
-        'nvidia':   ['-mp', '-O3']
+        'pgi':   ['-mp', '-O3']
     })
 
     # Number of cores for each system
@@ -56,7 +56,7 @@ class StreamMultiSysTest(rfm.RegressionTest):
     def set_num_threads(self):
         num_threads = self.cores.get(self.current_partition.fullname, 1)
         self.num_cpus_per_task = num_threads
-        self.env_vars = {
+        self.variables = {
             'OMP_NUM_THREADS': str(num_threads),
             'OMP_PLACES': 'cores'
         }

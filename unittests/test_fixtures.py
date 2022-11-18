@@ -531,9 +531,7 @@ def test_overlapping_registries(ctx_sys, simple_test,
     # correctly.
     assert len(inst) == 1
     assert inst[0].v == 2
-    assert inst[0].unique_name == list(
-        diff_reg[simple_fixture().cls].keys()
-    )[0]
+    assert inst[0].name == list(diff_reg[simple_fixture().cls].keys())[0]
     assert inst[0].valid_systems == ['sys1:p0']
     assert inst[0].valid_prog_environs == ['e0']
 

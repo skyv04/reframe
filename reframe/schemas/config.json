@@ -146,11 +146,7 @@
                 {
                     "properties": {
                         "url": {"type": "string"},
-                        "extras": {"type": "object"},
-                        "ignore_keys": {
-                            "type": "array",
-                            "items": {"type": "string"}
-                        }
+                        "extras": {"type": "object"}
                     },
                     "required": ["url"]
                 }
@@ -235,12 +231,13 @@
                                  "lmod", "nomod", "spack"]
                     },
                     "modules": {"$ref": "#/defs/modules_list"},
-                    "env_vars": {"$ref": "#/defs/envvar_list"},
                     "variables": {"$ref": "#/defs/envvar_list"},
                     "prefix": {"type": "string"},
                     "stagedir": {"type": "string"},
                     "outputdir": {"type": "string"},
                     "resourcesdir": {"type": "string"},
+                    "vm_data_file": {"type": "string"},
+                    "vm_size": {"type": "string"},
                     "partitions": {
                         "type": "array",
                         "items": {
@@ -251,12 +248,17 @@
                                 "scheduler": {
                                     "type": "string",
                                     "enum": [
-                                        "flux", "local", "lsf", "oar", "pbs",
+                                        "local", "lsf", "oar", "pbs",
                                         "sge", "slurm", "squeue", "torque"
                                     ]
                                 },
                                 "launcher": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "enum": [
+                                        "alps",  "ibrun", "local", "mpirun",
+                                        "mpiexec", "srun", "srunalloc", "ssh",
+                                        "upcrun", "upcxx-run", "lrun", "lrun-gpu"
+                                    ]
                                 },
                                 "access": {
                                     "type": "array",
@@ -275,9 +277,6 @@
                                             "modules": {
                                                 "$ref": "#/defs/modules_list"
                                             },
-                                            "env_vars": {
-                                                "$ref": "#/defs/envvar_list"
-                                            },
                                             "variables": {
                                                 "$ref": "#/defs/envvar_list"
                                             },
@@ -287,9 +286,8 @@
                                     }
                                 },
                                 "modules": {"$ref": "#/defs/modules_list"},
-                                "env_vars": {"$ref": "#/defs/envvar_list"},
-                                "variables": {"$ref": "#/defs/envvar_list"},
                                 "time_limit": {"type": ["string", "null"]},
+                                "variables": {"$ref": "#/defs/envvar_list"},
                                 "max_jobs": {"type": "number"},
                                 "prepare_cmds": {
                                     "type": "array",
@@ -340,7 +338,6 @@
                 "properties": {
                     "name": {"$ref": "#/defs/alphanum_ext_string"},
                     "modules": {"$ref": "#/defs/modules_list"},
-                    "env_vars": {"$ref": "#/defs/envvar_list"},
                     "variables": {"$ref": "#/defs/envvar_list"},
                     "cc": {"type": "string"},
                     "cxx": {"type": "string"},
@@ -388,7 +385,7 @@
                 "properties": {
                     "name": {
                         "type": "string",
-                        "enum": ["flux", "local", "lsf", "oar", "pbs",
+                        "enum": ["local", "lsf", "oar", "pbs",
                                  "sge", "slurm", "squeue", "torque"]
                     },
                     "ignore_reqnodenotavail": {"type": "boolean"},
@@ -470,6 +467,7 @@
                     "check_search_recursive": {"type": "boolean"},
                     "clean_stagedir": {"type": "boolean"},
                     "colorize": {"type": "boolean"},
+                    "compact_test_names": {"type": "boolean"},
                     "compress_report": {"type": "boolean"},
                     "git_timeout": {"type": "number"},
                     "ignore_check_conflicts": {"type": "boolean"},
@@ -505,7 +503,6 @@
     "additionalProperties": false,
     "defaults": {
         "environments/modules": [],
-        "environments/env_vars": [],
         "environments/variables": [],
         "environments/cc": "cc",
         "environments/cxx": "CC",
@@ -519,11 +516,12 @@
         "environments/features": [],
         "environments/target_systems": ["*"],
         "general/dump_pipeline_progress": false,
-        "general/pipeline_timeout": 3,
+        "general/pipeline_timeout": null,
         "general/check_search_path": ["${RFM_INSTALL_PREFIX}/checks/"],
         "general/check_search_recursive": false,
         "general/clean_stagedir": true,
         "general/colorize": true,
+        "general/compact_test_names": false,
         "general/compress_report": false,
         "general/git_timeout": 5,
         "general/ignore_check_conflicts": false,
@@ -534,7 +532,7 @@
         "general/purge_environment": false,
         "general/remote_detect": false,
         "general/remote_workdir": ".",
-        "general/report_file": "${HOME}/.reframe/reports/run-report-{sessionid}.json",
+        "general/report_file": "${HOME}/.reframe/reports/run-report.json",
         "general/report_junit": null,
         "general/resolve_module_conflicts": true,
         "general/save_log_files": false,
@@ -557,7 +555,6 @@
         "logging/handlers*/filelog_basedir": "./perflogs",
         "logging/handlers*/graylog_extras": {},
         "logging/handlers*/httpjson_extras": {},
-        "logging/handlers*/httpjson_ignore_keys": [],
         "logging/handlers*/stream_name": "stdout",
         "logging/handlers*/syslog_socktype": "udp",
         "logging/handlers*/syslog_facility": "user",
@@ -572,7 +569,6 @@
         "systems/max_local_jobs": 8,
         "systems/modules_system": "nomod",
         "systems/modules": [],
-        "systems/env_vars": [],
         "systems/variables": [],
         "systems/prefix": ".",
         "systems/outputdir": "",
@@ -584,13 +580,11 @@
         "systems/partitions/container_runtime": null,
         "systems/partitions/container_platforms": [],
         "systems/partitions/container_platforms/*modules": [],
-        "systems/partitions/container_platforms/*env_vars": [],
         "systems/partitions/container_platforms/*variables": [],
         "systems/partitions/features": [],
         "systems/partitions/resources": [],
         "systems/partitions/resources/options": [],
         "systems/partitions/modules": [],
-        "systems/partitions/env_vars": [],
         "systems/partitions/variables": [],
         "systems/partitions/max_jobs": 8,
         "systems/partitions/prepare_cmds": [],

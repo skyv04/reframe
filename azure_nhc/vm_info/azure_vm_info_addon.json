@@ -1,0 +1,242 @@
+{
+    "family":{
+        "standardHBSFamily": {
+            "processor": "amd",
+            "eth_type": "eth_40g",
+            "ib_count": 1,
+            "ib_type": "ib_edr",
+            "sriov_enabled": true,
+            "stream_triad": 240000,
+            "stream_triad_limits": [-0.05, 0.05],
+            "hpl_performance": 1238,
+            "hpl_performance_limits": [-0.05, 0.15],
+            "vm_ram": 224
+        },
+        "standardHBrsv2Family": {
+            "processor": "amd",
+            "eth_type": "eth_40g",
+            "ib_count": 1,
+            "ib_type": "ib_hdr",
+	        "nvme_count": 1,
+	        "nvme_type": "nvme_1tb",
+            "sriov_enabled": true,
+            "stream_triad": 320000,
+            "stream_triad_limits": [-0.05, 0.05],
+            "hpl_performance": 2650,
+            "hpl_performance_limits": [-0.05, 0.15],
+            "fio_writetpt": 1000,
+            "fio_writetpt_limits": [-0.05, 0.15],
+            "vm_ram": 448
+        },
+        "standardHBv3Family": {
+            "processor": "amd",
+            "eth_type": "eth_40g",
+            "ib_count": 1,
+            "ib_type": "ib_hdr",
+	        "nvme_count": 2,
+	        "nvme_type": "nvme_1tb",
+            "sriov_enabled": true,
+            "stream_triad": 320000,
+            "stream_triad_limits": [-0.05, 0.05],
+            "hpl_performance": 2635,
+            "hpl_performance_limits": [-0.05, 0.15],
+            "fio_writetpt": 1300,
+            "fio_writetpt_limits": [-0.05, 0.15],
+            "vm_ram": 448
+        },
+        "standardHCSFamily": {
+            "processor": "intel",
+            "eth_type": "eth_40g",
+            "ib_count": 1,
+            "ib_type": "ib_edr",
+            "sriov_enabled": true,
+            "stream_triad": 180000,
+            "stream_triad_limits": [-0.05, 0.05],
+            "hpl_performance": 1780,
+            "hpl_performance_limits": [-0.05, 0.15],
+            "vm_ram": 346
+        },
+	    "standardHFamily": {
+            "processor": "intel",
+            "eth_type": "eth_40g",
+            "ib_count": 1,
+            "ib_type": "ib_fdr",
+            "sriov_enabled": false,
+            "stream_triad": 82000,
+            "stream_triad_limits": [-0.05, 0.05]
+        },
+        "standardNCSv3Family": {
+            "processor": "intel",
+            "eth_type": "eth_40g",
+            "ib_count": 1,
+            "ib_type": "ib_qdr",
+            "gpu_count": 4,
+            "gpu_type": "gpu_v100_pcie",
+            "sriov_enabled": true,
+            "stream_triad": 105000,
+            "stream_triad_limits": [-0.05, 0.05],
+            "vm_ram": 440
+        },
+        "StandardNCADSA100v4Family": {
+            "processor": "intel",
+            "eth_type": "eth_80g",
+            "ib_count": 0,
+            "gpu_count": 4,
+            "gpu_type": "gpu_a100_80gb_pcie",
+            "sriov_enabled": true,
+            "stream_triad": 105000,
+            "stream_triad_limits": [-0.05, 0.05],
+            "vm_ram": 440
+        },
+        "standardNDSv2Family": {
+            "processor": "intel",
+            "eth_type": "eth_40g",
+            "ib_count": 1,
+            "ib_type": "ib_hdr",
+            "gpu_count": 8,
+            "gpu_type": "gpu_v100_sxm",
+            "nvme_count": 8,
+            "stream_triad": 180000,
+            "stream_triad_limits": [-0.05, 0.05],
+            "sriov_enabled": true,
+            "vm_ram": 440
+        },
+        "Standard NDASv4_A100 Family": {
+            "processor": "amd",
+            "eth_type": "eth_40g",
+            "ib_count": 8,
+            "ib_type": "ib_hdr",
+            "gpu_count": 8,
+            "gpu_type": "gpu_a100_40gb_sxm",
+            "nvme_count": 8,
+            "nvme_type": "nvme_1tb",
+            "sriov_enabled": true,
+            "stream_triad": 320000,
+            "stream_triad_limits": [-0.05, 0.05],
+            "vm_ram": 880
+        },
+        "standard NDAMSv4_A100Family": {
+            "processor": "amd",
+            "eth_type": "eth_40g",
+            "ib_count": 8,
+            "ib_type": "ib_hdr",
+            "gpu_count": 8,
+            "gpu_type": "gpu_a100_80gb_sxm",
+            "nvme_count": 8,
+            "nvme_type": "nvme_1tb",
+            "sriov_enabled": true,
+            "stream_triad": 320000,
+            "stream_triad_limits": [-0.05, 0.05],
+            "vm_ram": 1770
+        }
+    },
+    "hardware":{
+        "eth_40g":{
+            "eth_state": "4: ACTIVE",
+            "eth_pstate": "5: LinkUp",
+            "eth_rate": "50 Gb/sec (2X EDR)",
+            "pcie_accel_net_name": "Ethernet controller: Mellanox Technologies MT27710 Family"
+        },
+        "eth_80g":{
+            "eth_state": "4: ACTIVE",
+            "eth_pstate": "5: LinkUp",
+            "eth_rate": "100 Gb/sec (4X EDR)",
+            "pcie_accel_net_name": "Ethernet controller: Mellanox Technologies MT27800 Family"
+        },
+        "ib_fdr":{
+            "ib_state":"Active",
+            "ib_pstate": "LinkUp",
+            "ib_speed": "54000Mb/s",
+            "ib_rate": "5 Gb/sec (1X DDR)",
+            "ib_cutoff_8b_latency": 5.0,
+            "ib_cutoff_4Mb_bibw": 8000
+        },
+        "ib_qdr":{
+            "ib_state":"PORT_ACTIVE",
+            "ib_pstate": "LINK_UP",
+            "ib_speed": "10.0 Gbps",
+            "ib_rate": "4X",
+            "ib_cutoff_8b_latency": 2.7,
+            "ib_cutoff_4Mb_bibw": 9000,
+            "ib_link_layer": "InfiniBand"
+        },
+        "ib_edr":{
+            "ib_state":"Active",
+            "ib_pstate": "LinkUp",
+            "ib_rate": "100",
+            "ib_cutoff_8b_latency": 2.5,
+            "ib_cutoff_4Mb_bibw": 10000,
+            "ib_link_layer": "InfiniBand",
+            "pcie_ib_name": "Infiniband controller: Mellanox Technologies MT27800 Family"
+        },
+        "ib_hdr":{
+            "ib_state":"Active",
+            "ib_pstate": "LinkUp",
+            "ib_rate": "200",
+            "ib_cutoff_8b_latency": "2.5",
+            "ib_cutoff_4Mb_bibw": "20000",
+            "ib_link_layer": "InfiniBand",
+            "pcie_ib_name": "Infiniband controller: Mellanox Technologies MT28908 Family"
+        },		
+        "gpu_v100_pcie":{
+             "gpu_htod_bw": 12.2,
+             "gpu_dtoh_bw": 11.1,
+	     "gpu_dtoh_bw_limits": [22.0, 26.5],
+	     "gpu_htod_bw_limits": [25.0, 27.0],
+             "pcie_gpu_name": "3D controller: NVIDIA Corporation Device"
+        },	
+        "gpu_v100_sxm":{
+             "gpu_htod_bw": 13.2,
+             "gpu_dtoh_bw": 12.1,
+	     "gpu_dtoh_bw_limits": [22.0, 26.5],
+	     "gpu_htod_bw_limits": [25.0, 27.0],
+             "pcie_gpu_name": "3D controller: NVIDIA Corporation Device"
+        },	
+        "gpu_a100_40gb_sxm":{
+             "gpu_htod_bw": 26.2,
+             "gpu_dtoh_bw": 24.1,
+	     "gpu_dtoh_bw_limits": [22.0, 26.5],
+	     "gpu_htod_bw_limits": [25.0, 27.0],
+             "pcie_gpu_name": "3D controller: NVIDIA Corporation Device"
+        },
+        "gpu_a100_80gb_pcie":{
+             "gpu_htod_bw": 26.2,
+             "gpu_dtoh_bw": 24.1,
+	     "gpu_dtoh_bw_limits": [22.0, 26.5],
+	     "gpu_htod_bw_limits": [25.0, 27.0],
+             "pcie_gpu_name": "3D controller: NVIDIA Corporation Device"
+        },
+        "gpu_a100_80gb_sxm":{
+             "gpu_htod_bw": 26.2,
+             "gpu_dtoh_bw": 24.1,
+	     "gpu_dtoh_bw_limits": [22.0, 26.5],
+	     "gpu_htod_bw_limits": [25.0, 27.0],
+             "pcie_gpu_name": "3D controller: NVIDIA Corporation Device"
+        },
+        "nvme_1tb":{
+            "pcie_nvme_name": "Non-Volatile memory controller: Microsoft Corporation Device b111"
+        }
+    },
+    "vm_sizes":{
+        "Standard_HB120rs_v3": {
+        },
+        "Standard_HB120rs_v2": {
+        },
+        "Standard_H16r": {
+            "vm_ram": 110
+        },
+        "Standard_H16mr": {
+            "vm_ram": 220
+        },
+        "Standard_HC44rs":{
+        },
+        "Standard_HB60rs": {
+        },
+        "Standard_NC24rs_v3": {
+            "vm_ram": 440
+        },
+        "Standard_ND40rs_v2": {
+            "vm_ram": 440
+        }
+    }
+}

@@ -6,6 +6,7 @@
 import abc
 
 import reframe.core.fields as fields
+import reframe.core.warnings as warn
 import reframe.utility as util
 import reframe.utility.typecheck as typ
 
@@ -37,6 +38,21 @@ class ContainerPlatform(abc.ABC):
     #: :type: :class:`str` or :class:`None`
     #: :default: :class:`None`
     command = fields.TypedField(str, type(None))
+
+    _commands = fields.TypedField(typ.List[str])
+    #: The commands to be executed within the container.
+    #:
+    #: .. deprecated:: 3.5.0
+    #:    Please use the `command` field instead.
+    #:
+    #: :type: :class:`list[str]`
+    #: :default: ``[]``
+    commands = fields.DeprecatedField(
+        _commands,
+        'The `commands` field is deprecated, please use the `command` field '
+        'to set the command to be executed by the container.',
+        fields.DeprecatedField.OP_SET, from_version='3.5.0'
+    )
 
     #: Pull the container image before running.
     #:
@@ -81,6 +97,11 @@ class ContainerPlatform(abc.ABC):
     def __init__(self):
         self.image = None
         self.command = None
+
+        # NOTE: Here we set the target fields directly to avoid the deprecation
+        # warnings
+        self._commands = []
+
         self.workdir = _STAGEDIR_MOUNT
         self.mount_points  = []
         self.options = []
@@ -135,6 +156,11 @@ class ContainerPlatform(abc.ABC):
         new.options = other.options
         new.pull_image = other.pull_image
         new.workdir = other.workdir
+
+        # Update deprecated fields
+        with warn.suppress_deprecations():
+            new.commands = other.commands
+
         return new
 
     @property
@@ -166,6 +192,10 @@ class Docker(ContainerPlatform):
         if self.command:
             return (f'docker run --rm {" ".join(run_opts)} '
                     f'{self.image} {self.command}')
+
+        if self.commands:
+            return (f"docker run --rm {' '.join(run_opts)} {self.image} "
+                    f"bash -c '{'; '.join(self.commands)}'")
 
         return f'docker run --rm {" ".join(run_opts)} {self.image}'
 
@@ -211,6 +241,10 @@ class Sarus(ContainerPlatform):
             return (f'{self._command} run {" ".join(run_opts)} {self.image} '
                     f'{self.command}')
 
+        if self.commands:
+            return (f"{self._command} run {' '.join(run_opts)} {self.image} "
+                    f"bash -c '{'; '.join(self.commands)}'")
+
         return f'{self._command} run {" ".join(run_opts)} {self.image}'
 
 
@@ -243,7 +277,6 @@ class Singularity(ContainerPlatform):
     def __init__(self):
         super().__init__()
         self.with_cuda = False
-        self._launch_command = 'singularity'
 
     def emit_prepare_commands(self, stagedir):
         return []
@@ -256,27 +289,18 @@ class Singularity(ContainerPlatform):
             run_opts.append('--nv')
 
         if self.workdir:
-            run_opts.append(f'--pwd {self.workdir}')
+            run_opts.append(f'-W {self.workdir}')
 
         run_opts += self.options
         if self.command:
-            return (f'{self._launch_command} exec {" ".join(run_opts)} '
+            return (f'singularity exec {" ".join(run_opts)} '
                     f'{self.image} {self.command}')
 
-        return f'{self._launch_command} run {" ".join(run_opts)} {self.image}'
+        if self.commands:
+            return (f"singularity exec {' '.join(run_opts)} {self.image} "
+                    f"bash -c '{'; '.join(self.commands)}'")
 
-
-class Apptainer(Singularity):
-    '''Container platform backend for running containers with `Apptainer
-    <https://apptainer.org/>`__.
-
-    .. versionadded:: 4.0.0
-
-    '''
-
-    def __init__(self):
-        super().__init__()
-        self._launch_command = 'apptainer'
+        return f'singularity run {" ".join(run_opts)} {self.image}'
 
 
 class ContainerPlatformField(fields.TypedField):

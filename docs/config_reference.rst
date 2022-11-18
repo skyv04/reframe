@@ -142,7 +142,7 @@ System Configuration
    These modules modify the ReFrame environment.
    This is useful in cases where a particular module is needed, for example, to submit jobs on a specific system.
 
-.. js:attribute:: .systems[].env_vars
+.. js:attribute:: .systems[].variables
 
    :required: No
    :default: ``[]``
@@ -153,14 +153,6 @@ System Configuration
    You may reference other environment variables when defining an environment variable here.
    ReFrame will expand its value.
    Variables are set after the environment modules are loaded.
-
-   .. versionadded:: 4.0.0
-
-.. js:attribute:: .systems[].variables
-
-   .. deprecated:: 4.0.0
-      Please use :js:attr:`env_vars` instead.
-      If specified in conjunction with :js:attr:`env_vars`, it will be ignored.
 
 .. js:attribute:: .systems[].prefix
 
@@ -231,7 +223,6 @@ System Partition Configuration
    Supported schedulers are the following:
 
    - ``local``: Jobs will be launched locally without using any job scheduler.
-   - ``flux``: Jobs will be launched using the `Flux Framework <https://flux-framework.org/>`_ scheduler.
    - ``oar``: Jobs will be launched using the `OAR <https://oar.imag.fr/>`__ scheduler.
    - ``pbs``: Jobs will be launched using the `PBS Pro <https://en.wikipedia.org/wiki/Portable_Batch_System>`__ scheduler.
    - ``sge``: Jobs will be launched using the `Sun Grid Engine <https://arc.liv.ac.uk/SGE/htmlman/manuals.html>`__ scheduler.
@@ -331,14 +322,6 @@ System Partition Configuration
    - ``upcrun``: Parallel programs will be launched using the `UPC <https://upc.lbl.gov/>`__ ``upcrun`` command.
    - ``upcxx-run``: Parallel programs will be launched using the `UPC++ <https://bitbucket.org/berkeleylab/upcxx/wiki/Home>`__ ``upcxx-run`` command.
 
-   .. tip::
-
-      .. versionadded:: 4.0.0
-
-        ReFrame also allows you to register your own custom launchers simply by defining them in the configuration.
-        You can follow a small tutorial `here <tutorial_advanced.html#adding-a-custom-launcher-to-a-partition>`__.
-
-
 .. js:attribute:: .systems[].partitions[].access
 
    :required: No
@@ -382,7 +365,7 @@ System Partition Configuration
    When the value is ``null``, no time limit is applied.
 
 
-.. js:attribute:: .systems[].partitions[].env_vars
+.. js:attribute:: .systems[].partitions[].variables
 
    :required: No
    :default: ``[]``
@@ -393,13 +376,6 @@ System Partition Configuration
    ReFrame will expand its value.
    Variables are set after the environment modules are loaded.
 
-   .. versionadded:: 4.0.0
-
-.. js:attribute:: .systems[].partitions[].variables
-
-   .. deprecated:: 4.0.0
-      Please use :js:attr:`env_vars` instead.
-      If specified in conjunction with :js:attr:`env_vars`, it will be ignored.
 
 .. js:attribute:: .systems[].partitions[].max_jobs
 
@@ -490,7 +466,6 @@ ReFrame can launch containerized applications, but you need to configure properl
    The type of the container platform.
    Available values are the following:
 
-   - ``Apptainer``: The `Apptainer <https://apptainer.org/>`__ container runtime.
    - ``Docker``: The `Docker <https://www.docker.com/>`__ container runtime.
    - ``Sarus``: The `Sarus <https://sarus.readthedocs.io/>`__ container runtime.
    - ``Shifter``: The `Shifter <https://github.com/NERSC/shifter>`__ container runtime.
@@ -515,7 +490,7 @@ ReFrame can launch containerized applications, but you need to configure properl
    A list of `environment module objects <#module-objects>`__ to be loaded when running containerized tests using this container platform.
 
 
-.. js:attribute:: .systems[].partitions[].container_platforms[].env_vars
+.. js:attribute:: .systems[].partitions[].container_platforms[].variables
 
    :required: No
    :default: ``[]``
@@ -525,14 +500,6 @@ ReFrame can launch containerized applications, but you need to configure properl
    You may reference other environment variables when defining an environment variable here.
    ReFrame will expand its value.
    Variables are set after the environment modules are loaded.
-
-   .. versionadded:: 4.0.0
-
-.. js:attribute:: .systems[].partitions[].container_platforms[].variables
-
-   .. deprecated:: 4.0.0
-      Please use :js:attr:`env_vars` instead.
-      If specified in conjunction with :js:attr:`env_vars`, it will be ignored.
 
 
 Custom Job Scheduler Resources
@@ -585,7 +552,7 @@ ReFrame allows you to define custom scheduler resources for each partition that 
 
    A resource specification may also start with ``#PREFIX``, in which case ``#PREFIX`` will replace the standard job script prefix of the backend scheduler of this partition.
    This is useful in cases of job schedulers like Slurm, that allow alternative prefixes for certain features.
-   An example is the `DataWarp <https://www.nersc.gov/assets/Uploads/dw-overview-overby.pdf>`__ functionality of Slurm which is supported by the ``#DW`` prefix.
+   An example is the `DataWarp <https://www.cray.com/datawarp>`__ functionality of Slurm which is supported by the ``#DW`` prefix.
    One could then define DataWarp related resources as follows:
 
    .. code:: python
@@ -642,7 +609,7 @@ They are associated with `system partitions <#system-partition-configuration>`__
    A list of `environment module objects <#module-objects>`__ to be loaded when this environment is loaded.
 
 
-.. js:attribute:: .environments[].env_vars
+.. js:attribute:: .environments[].variables
 
    :required: No
    :default: ``[]``
@@ -652,14 +619,6 @@ They are associated with `system partitions <#system-partition-configuration>`__
    You may reference other environment variables when defining an environment variable here.
    ReFrame will expand its value.
    Variables are set after the environment modules are loaded.
-
-   .. versionadded:: 4.0.0
-
-.. js:attribute:: .environments[].variables
-
-   .. deprecated:: 4.0.0
-      Please use :js:attr:`env_vars` instead.
-      If specified in conjunction with :js:attr:`env_vars`, it will be ignored.
 
 
 .. js:attribute:: .environments[].features
@@ -899,15 +858,12 @@ All logging handlers share the following set of common attributes:
       ``%(check_descr)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.descr` attribute.
       ``%(check_display_name)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.display_name` attribute.
       ``%(check_environ)s``, The name of the test's :attr:`~reframe.core.pipeline.RegressionTest.current_environ`.
-      ``%(check_env_vars)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.env_vars` attribute.
-    ``%(check_exclusive_access)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.exclusive_access` attribute.
+      ``%(check_exclusive_access)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.exclusive_access` attribute.
       ``%(check_executable)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.executable` attribute.
       ``%(check_executable_opts)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.executable_opts` attribute.
       ``%(check_extra_resources)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.extra_resources` attribute.
-      ``%(check_hashcode)s``, The unique hash associated with this test.
-      ``%(check_info)s``, Various information about this test; essentially the return value of the test's :func:`~reframe.core.pipeline.RegressionTest.info` function.
-      ``%(check_job_completion_time)s``, Same as the ``(check_job_completion_time_unix)s`` but formatted according to ``datefmt``.
       ``%(check_job_completion_time_unix)s``, The completion time of the associated run job (see :attr:`reframe.core.schedulers.Job.completion_time`).
+      ``%(check_job_completion_time)s``, Same as the ``(check_job_completion_time_unix)s`` but formatted according to ``datefmt``.
       ``%(check_job_exitcode)s``, The exit code of the associated run job.
       ``%(check_job_nodelist)s``, The list of nodes that the associated run job has run on.
       ``%(check_jobid)s``, The ID of the associated run job.
@@ -925,20 +881,13 @@ All logging handlers share the following set of common attributes:
       ``%(check_num_tasks_per_socket)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.num_tasks_per_socket` attribute.
       ``%(check_outputdir)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.outputdir` attribute.
       ``%(check_partition)s``, The name of the test's :attr:`~reframe.core.pipeline.RegressionTest.current_partition`.
-      ``%(check_perf_lower_thres)s``, The lower threshold of the logged performance variable.
-      ``%(check_perf_ref)s``, The reference value of the logged performance variable.
-      ``%(check_perf_unit)s``, The measurement unit of the logged performance variable.
-      ``%(check_perf_upper)s``, The upper thresholds of the logged performance variable.
-      ``%(check_perf_value)s``, The actual value of the logged performance variable.
-      ``%(check_perf_var)s``, The name of the logged performance variable.
-      ``%(check_perfvalues)s``, All the performance variables of the test combined along with their values, references and thresholds.
+      ``%(check_perfvalues)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.perfvalues` attribute.
       ``%(check_postbuild_cmds)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.postbuild_cmds` attribute.
       ``%(check_postrun_cmds)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.postrun_cmds` attribute.
       ``%(check_prebuild_cmds)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.prebuild_cmds` attribute.
       ``%(check_prefix)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.prefix` attribute.
       ``%(check_prerun_cmds)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.prerun_cmds` attribute.
       ``%(check_readonly_files)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.readonly_files` attribute.
-      ``%(check_short_name)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.short_name` attribute.
       ``%(check_sourcepath)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.sourcepath` attribute.
       ``%(check_sourcesdir)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.sourcesdir` attribute.
       ``%(check_stagedir)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.stagedir` attribute.
@@ -950,7 +899,7 @@ All logging handlers share the following set of common attributes:
       ``%(check_use_multithreading)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.use_multithreading` attribute.
       ``%(check_valid_prog_environs)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.valid_prog_environs` attribute.
       ``%(check_valid_systems)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.valid_systems` attribute.
-      ``%(check_variables)s``, DEPRECATED: Please use ``%(check_env_vars)s`` instead.
+      ``%(check_variables)s``, The value of the :attr:`~reframe.core.pipeline.RegressionTest.variables` attribute.
       ``%(osuser)s``, The name of the OS user running ReFrame.
       ``%(osgroup)s``, The name of the OS group running ReFrame.
       ``%(version)s``, The ReFrame version.
@@ -1058,9 +1007,9 @@ The additional properties for the ``filelog`` handler are the following:
      {basedir}/
         system1/
             partition1/
-                test_short_name.log
+                test_name.log
             partition2/
-                test_short_name.log
+                test_name.log
             ...
         system2/
         ...
@@ -1220,15 +1169,6 @@ The additional properties for the ``httpjson`` handler are the following:
    A set of optional key/value pairs to be passed with each log record to the server.
    These may depend on the server configuration.
 
-.. js:attribute:: .logging[].handlers[].ignore_keys
-
-.. object:: .logging[].handlers_perflog[].ignore_keys
-
-   :required: No
-   :default: ``[]``
-
-   These keys will be excluded from the log record that will be sent to the server.
-
 
 The ``httpjson`` handler sends log messages in JSON format using an HTTP POST request to the specified URL.
 
@@ -1238,13 +1178,12 @@ An example configuration of this handler for performance logging is shown here:
 
    {
        'type': 'httpjson',
-       'url': 'http://httpjson-server:12345/rfm',
+       'address': 'http://httpjson-server:12345/rfm',
        'level': 'info',
        'extras': {
            'facility': 'reframe',
            'data-version': '1.0'
-       },
-       'ignore_keys': ['check_perfvalues']
+       }
    }
 
 
@@ -1340,7 +1279,7 @@ The options of an execution mode will be passed to ReFrame as if they were speci
    :required: Yes
 
    The name of this execution mode.
-   This can be used with the :option:`--mode` command line option to invoke this mode.
+   This can be used with the ``-mode`` command line option to invoke this mode.
 
 
 .. js:attribute:: .modes[].options
@@ -1399,6 +1338,21 @@ General Configuration
 
    Use colors in output.
    The command-line option sets the configuration option to ``false``.
+
+
+.. js:attribute:: .general[].compact_test_names
+
+   :required: No
+   :default: ``false``
+
+   Use a compact test naming scheme.
+   When set to ``true``, the test parameter values will not be encoded into the test name.
+   Instead, the several test variants are differentiated by including the unique variant number into the test name.
+
+   .. warning::
+      The default value will be changed to ``true`` in version 4.0.0.
+
+   .. versionadded:: 3.9.0
 
 
 .. js:attribute:: .general[].compress_report
@@ -1535,15 +1489,13 @@ General Configuration
 .. js:attribute:: .general[].report_file
 
    :required: No
-   :default: ``"${HOME}/.reframe/reports/run-report-{sessionid}.json"``
+   :default: ``"${HOME}/.reframe/reports/run-report.json"``
 
    The file where ReFrame will store its report.
 
    .. versionadded:: 3.1
    .. versionchanged:: 3.2
       Default value has changed to avoid generating a report file per session.
-   .. versionchanged:: 4.0.0
-      Default value was reverted back to generate a new file per run.
 
 
 .. js:attribute:: .general[].report_junit
@@ -1690,10 +1642,6 @@ Processor Info
 
 A *processor info object* in ReFrame's configuration is used to hold information about the processor of a system partition and is made available to the tests through the :attr:`processor <reframe.core.systems.SystemPartition.processor>` attribute of the :attr:`current_partition <reframe.core.pipeline.RegressionTest.current_partition>`.
 
-.. note::
-   In the following the term *logical CPUs* refers to the smallest processing unit recognized by the OS.
-   Depending on the microarchitecture, this can either be a core or a hardware thread in processors that support simultaneous multithreading and this feature is enabled.
-   Therefore, properties such as :attr:`num_cpus_per_core` may have a value greater than one.
 
 .. attribute:: .arch
 

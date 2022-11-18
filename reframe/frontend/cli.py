@@ -7,7 +7,6 @@ import inspect
 import itertools
 import json
 import os
-import random
 import shlex
 import socket
 import sys
@@ -26,11 +25,13 @@ import reframe.frontend.ci as ci
 import reframe.frontend.dependencies as dependencies
 import reframe.frontend.filters as filters
 import reframe.frontend.runreport as runreport
-import reframe.utility as util
 import reframe.utility.jsonext as jsonext
 import reframe.utility.osext as osext
 import reframe.utility.typecheck as typ
 
+# import pytz
+from datetime import datetime
+import reframe.utility as util
 
 from reframe.frontend.testgenerators import (distribute_tests,
                                              getallnodes, repeat_tests)
@@ -41,6 +42,38 @@ from reframe.frontend.loader import RegressionCheckLoader
 from reframe.frontend.printer import PrettyPrinter
 
 
+add_keys_to_report = ['ReportTime', 'VmId', 'VmName', 'VmSize', 'VmOsRef']
+
+
+def additional_keys(json_report):
+    ''' modify the report if additional keys have been provided '''
+    cmd = "curl -H Metadata:true 'http://169.254.169.254/metadata/instance?api-version=2019-06-04'"
+    results = util.osext.run_command(cmd)
+    vm_data = json.loads(results.stdout)['compute']
+    
+    if len(add_keys_to_report) > 0:
+        # to replace in order of keys in add_keys_to_report
+        # PST_tz = pytz.timezone('UTC')
+        values_for_added_keys = [str(datetime.now()), vm_data['vmId'], vm_data['name'], vm_data['vmSize'], vm_data['offer'] + "_" + vm_data['osType'] + "_" + vm_data['version']]
+        _dict = {}
+        # this could be simplify if order is of no value
+        for i, k in enumerate(add_keys_to_report):
+            if i <= 2: # want first three keys to be first in the report
+                _dict[k] = values_for_added_keys[i]
+        _dict.update(json_report)
+        json_report = _dict
+
+        # renaming default to custom names
+        json_report['SessionInfo'] = json_report.pop("session_info")
+        json_report['Runs'] = json_report.pop("runs")
+        json_report['RestoredCases'] = json_report.pop("restored_cases")
+
+        for i, k in enumerate(add_keys_to_report): 
+            if i > 2: # want last two keys to be last in the report
+                json_report[k] = values_for_added_keys[i]
+    
+    return json_report
+
 def format_env(envvars):
     ret = '[ReFrame Environment]\n'
     notset = '<not set>'
@@ -49,7 +82,6 @@ def format_env(envvars):
     return ret
 
 
-@logging.time_function
 def list_checks(testcases, printer, detailed=False, concretized=False):
     printer.info('[List of matched checks]')
     unique_checks = set()
@@ -73,7 +105,6 @@ def list_checks(testcases, printer, detailed=False, concretized=False):
                 unique_checks.add(v.check.unique_name)
 
         if depth:
-            name_info = f'{u.check.display_name} /{u.check.hashcode}'
             tc_info = ''
             details = ''
             if concretized:
@@ -81,16 +112,17 @@ def list_checks(testcases, printer, detailed=False, concretized=False):
 
             location = inspect.getfile(type(u.check))
             if detailed:
-                details = f' [variant: {u.check.variant_num}, file: {location!r}]'
+                details = f' [id: {u.check.unique_name}, file: {location!r}]'
 
-            lines.append(f'{prefix}^{name_info}{tc_info}{details}')
+            lines.append(
+                f'{prefix}^{u.check.display_name}{tc_info}{details}'
+            )
 
         return lines
 
     # We need the leaf test cases to be printed at the leftmost
     leaf_testcases = list(t for t in testcases if t.in_degree == 0)
     for t in leaf_testcases:
-        name_info = f'{t.check.display_name} /{t.check.hashcode}'
         tc_info = ''
         details = ''
         if concretized:
@@ -98,11 +130,12 @@ def list_checks(testcases, printer, detailed=False, concretized=False):
 
         location = inspect.getfile(type(t.check))
         if detailed:
-            details = f' [variant: {t.check.variant_num}, file: {location!r}]'
+            details = f' [id: {t.check.unique_name}, file: {location!r}]'
 
+        # if not concretized and t.check.name not in unique_checks:
         if concretized or (not concretized and
                            t.check.unique_name not in unique_checks):
-            printer.info(f'- {name_info}{tc_info}{details}')
+            printer.info(f'- {t.check.display_name}{tc_info}{details}')
 
         if not t.check.is_fixture():
             unique_checks.add(t.check.unique_name)
@@ -116,7 +149,6 @@ def list_checks(testcases, printer, detailed=False, concretized=False):
         printer.info(f'Found {len(unique_checks)} check(s)\n')
 
 
-@logging.time_function
 def describe_checks(testcases, printer):
     records = []
     unique_names = set()
@@ -155,9 +187,8 @@ def describe_checks(testcases, printer):
 
             # List all required variables
             required = []
-            var_space = type(tc.check).var_space
-            for var in var_space:
-                if not var_space[var].is_defined():
+            for var in tc.check._rfm_var_space:
+                if not tc.check._rfm_var_space[var].is_defined():
                     required.append(var)
 
             rec['@required'] = required
@@ -190,7 +221,6 @@ def calc_verbosity(site_config, quiesce):
     return curr_verbosity - quiesce
 
 
-@logging.time_function_noexit
 def main():
     # Setup command line options
     argparser = argparse.ArgumentParser()
@@ -389,11 +419,6 @@ def main():
               'is in STATE (default: "idle"')
     )
     run_options.add_argument(
-        '--exec-order', metavar='ORDER', action='store',
-        choices=['name', 'random', 'rname', 'ruid', 'uid'],
-        help='Impose an execution order for independent tests'
-    )
-    run_options.add_argument(
         '--exec-policy', metavar='POLICY', action='store',
         choices=['async', 'serial'], default='async',
         help='Set the execution policy of ReFrame (default: "async")'
@@ -555,9 +580,9 @@ def main():
         dest='autodetect_fqdn',
         envvar='RFM_AUTODETECT_FQDN',
         action='store',
-        default=False,
+        default=True,
         type=typ.Bool,
-        help='Use the full qualified domain name as host name'
+        help='Use FQDN as host name'
     )
     argparser.add_argument(
         dest='autodetect_method',
@@ -570,9 +595,9 @@ def main():
         dest='autodetect_xthostname',
         envvar='RFM_AUTODETECT_XTHOSTNAME',
         action='store',
-        default=False,
+        default=True,
         type=typ.Bool,
-        help="Use Cray's xthostname file to retrieve the host name"
+        help="Use Cray's xthostname file to find the host name"
     )
     argparser.add_argument(
         dest='git_timeout',
@@ -582,6 +607,12 @@ def main():
         help=('Timeout in seconds when checking if the url is a '
               'valid repository.'),
         type=float
+    )
+    argparser.add_argument(
+        dest='graylog_server',
+        envvar='RFM_GRAYLOG_ADDRESS',
+        configvar='logging/handlers_perflog/graylog_address',
+        help='Graylog server address'
     )
     argparser.add_argument(
         dest='httpjson_url',
@@ -594,7 +625,14 @@ def main():
         envvar='RFM_IGNORE_REQNODENOTAVAIL',
         configvar='schedulers/ignore_reqnodenotavail',
         action='store_true',
-        help='Ignore ReqNodeNotAvail Slurm error'
+        help='Graylog server address'
+    )
+    argparser.add_argument(
+        dest='compact_test_names',
+        envvar='RFM_COMPACT_TEST_NAMES',
+        configvar='general/compact_test_names',
+        action='store_true',
+        help='Use a compact test naming scheme'
     )
     argparser.add_argument(
         dest='dump_pipeline_progress',
@@ -692,6 +730,13 @@ def main():
     if not restrict_logging():
         printer.adjust_verbosity(calc_verbosity(site_config, options.quiet))
 
+    if os.getenv('RFM_GRAYLOG_SERVER'):
+        printer.warning(
+            'RFM_GRAYLOG_SERVER environment variable is deprecated; '
+            'please use RFM_GRAYLOG_ADDRESS instead'
+        )
+        os.environ['RFM_GRAYLOG_ADDRESS'] = os.getenv('RFM_GRAYLOG_SERVER')
+
     if options.upgrade_config_file is not None:
         old_config, *new_config = options.upgrade_config_file.split(
             ':', maxsplit=1
@@ -756,7 +801,7 @@ def main():
         logging.configure_logging(site_config)
     except (OSError, errors.ConfigError) as e:
         printer.error(f'failed to load configuration: {e}')
-        printer.info(logfiles_message())
+        printer.error(logfiles_message())
         sys.exit(1)
 
     printer.colorize = site_config.get('general/0/colorize')
@@ -768,7 +813,7 @@ def main():
         runtime.init_runtime(site_config)
     except errors.ConfigError as e:
         printer.error(f'failed to initialize runtime: {e}')
-        printer.info(logfiles_message())
+        printer.error(logfiles_message())
         sys.exit(1)
 
     if site_config.get('general/0/ignore_check_conflicts'):
@@ -797,7 +842,7 @@ def main():
         printer.error("stage and output refer to the same directory; "
                       "if this is on purpose, please use the "
                       "'--keep-stage-files' option.")
-        printer.info(logfiles_message())
+        printer.error(logfiles_message())
         sys.exit(1)
 
     # Show configuration after everything is set up
@@ -938,12 +983,8 @@ def main():
                    f"{':'.join(loader.load_path)!r}")
     print_infoline('stage directory', repr(session_info['prefix_stage']))
     print_infoline('output directory', repr(session_info['prefix_output']))
-    print_infoline('log files',
-                   ', '.join(repr(s) for s in logging.log_files()))
     printer.info('')
     try:
-        logging.getprofiler().enter_region('test processing')
-
         # Need to parse the cli options before loading the tests
         parsed_job_options = []
         for opt in options.job_options:
@@ -969,9 +1010,6 @@ def main():
         testcases_all = generate_testcases(checks_found)
         testcases = testcases_all
         printer.verbose(f'Generated {len(testcases)} test case(s)')
-
-        # Filter out fixtures
-        testcases = [t for t in testcases if not t.check.is_fixture()]
 
         # Filter test cases by name
         if options.exclude_names:
@@ -1053,8 +1091,8 @@ def main():
                     "a non-negative integer"
                 ) from None
 
-            testcases_all = repeat_tests(testcases, num_repeats)
-            testcases = testcases_all
+            testcases = repeat_tests(testcases, num_repeats)
+            testcases_all = testcases
 
         if options.distribute:
             node_map = getallnodes(options.distribute, parsed_job_options)
@@ -1069,31 +1107,15 @@ def main():
                 x for x in parsed_job_options
                 if (not x.startswith('-w') and not x.startswith('--nodelist'))
             ]
-            testcases_all = distribute_tests(testcases, node_map)
-            testcases = testcases_all
-
-        @logging.time_function
-        def _sort_testcases(testcases):
-            if options.exec_order in ('name', 'rname'):
-                testcases.sort(key=lambda c: c.check.display_name,
-                               reverse=(options.exec_order == 'rname'))
-            elif options.exec_order in ('uid', 'ruid'):
-                testcases.sort(key=lambda c: c.check.unique_name,
-                               reverse=(options.exec_order == 'ruid'))
-            elif options.exec_order == 'random':
-                random.shuffle(testcases)
-
-        _sort_testcases(testcases)
-        if testcases_all is not testcases:
-            _sort_testcases(testcases_all)
+            testcases = distribute_tests(testcases, node_map)
+            testcases_all = testcases
 
         # Prepare for running
         printer.debug('Building and validating the full test DAG')
         testgraph, skipped_cases = dependencies.build_deps(testcases_all)
         if skipped_cases:
             # Some cases were skipped, so adjust testcases
-            testcases = list(util.OrderedSet(testcases) -
-                             util.OrderedSet(skipped_cases))
+            testcases = list(set(testcases) - set(skipped_cases))
             printer.verbose(
                 f'Filtering test case(s) due to unresolved dependencies: '
                 f'{len(testcases)} remaining'
@@ -1232,12 +1254,11 @@ def main():
             try:
                 rt.modules_system.load_module(**m, force=True)
             except errors.EnvironError as e:
-                printer.error(
-                    f'could not load module {m["name"]!r} correctly; rerun '
-                    f'with -vv for more information'
+                printer.warning(
+                    f'could not load module {m["name"]!r} correctly; '
+                    f'skipping...'
                 )
                 printer.debug(str(e))
-                sys.exit(1)
 
         options.flex_alloc_nodes = options.flex_alloc_nodes or 'idle'
 
@@ -1330,6 +1351,10 @@ def main():
                 'runs': run_stats,
                 'restored_cases': []
             }
+
+            if len(add_keys_to_report) > 0: # modify the report if additional keys have been provided
+                json_report = additional_keys(json_report)
+
             if options.restore_session is not None:
                 for c in restored_cases:
                     json_report['restored_cases'].append(report.case(*c))
@@ -1365,7 +1390,7 @@ def main():
                     )
 
         if not success:
-            sys.exit(1)
+            sys.exit(0)
 
         sys.exit(0)
     except (Exception, KeyboardInterrupt, errors.ReframeFatalError):
@@ -1383,16 +1408,13 @@ def main():
         sys.exit(1)
     finally:
         try:
-            logging.getprofiler().exit_region()     # region: 'test processing'
             log_files = logging.log_files()
             if site_config.get('general/0/save_log_files'):
                 log_files = logging.save_log_files(rt.output_prefix)
+
         except OSError as e:
             printer.error(f'could not save log file: {e}')
             sys.exit(1)
         finally:
             if not restrict_logging():
                 printer.info(logfiles_message())
-
-            logging.getprofiler().exit_region()     # region: 'main'
-            logging.getprofiler().print_report(printer.debug)

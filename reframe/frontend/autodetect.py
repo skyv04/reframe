@@ -167,7 +167,8 @@ def _remote_detect(part):
 def detect_topology():
     rt = runtime.runtime()
     detect_remote_systems = rt.get_option('general/0/remote_detect')
-    topo_prefix = os.path.join(os.getenv('HOME'), '.reframe/topology')
+    # topo_prefix = os.path.join(os.getenv('HOME'), '.reframe/topology') # os.getenv('HOME') is failing on Aurora
+    topo_prefix = os.path.join('~', '.reframe/topology')
     for part in rt.system.partitions:
         getlogger().debug(f'detecting topology info for {part.fullname}')
         found_procinfo = False
@@ -231,10 +232,10 @@ def detect_topology():
             # No topology found, try to auto-detect it
             getlogger().debug(f'> no topology file found; auto-detecting...')
             modules = list(rt.system.preload_environ.modules)
-            vars = dict(rt.system.preload_environ.env_vars.items())
+            vars = dict(rt.system.preload_environ.variables.items())
             if _is_part_local(part):
                 modules += part.local_env.modules
-                vars.update(part.local_env.env_vars)
+                vars.update(part.local_env.variables)
 
                 # Unconditionally detect the system for fully local partitions
                 with runtime.temp_environment(modules=modules, variables=vars):

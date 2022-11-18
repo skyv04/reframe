@@ -20,8 +20,6 @@ import reframe.utility.color as color
 import reframe.utility.jsonext as jsonext
 import reframe.utility.osext as osext
 from reframe.core.exceptions import ConfigError, LoggingError
-from reframe.core.warnings import suppress_deprecations
-from reframe.utility.profile import TimeProfiler
 
 
 # Global configuration options for logging
@@ -148,9 +146,8 @@ class MultiFileHandler(logging.FileHandler):
         except OSError as e:
             raise LoggingError('logging failed') from e
 
-        self.baseFilename = os.path.join(
-            dirname, f'{record.__rfm_check__.short_name}.log'
-        )
+        self.baseFilename = os.path.join(dirname,
+                                         f'{record.__rfm_check__.name}.log')
         self.stream = self._streams.get(self.baseFilename, None)
         super().emit(record)
         self._streams[self.baseFilename] = self.stream
@@ -372,8 +369,7 @@ def _create_httpjson_handler(site_config, config_prefix):
         return None
 
     extras = site_config.get(f'{config_prefix}/extras')
-    ignore_keys = site_config.get(f'{config_prefix}/ignore_keys')
-    return HTTPJSONHandler(url, extras, ignore_keys)
+    return HTTPJSONHandler(url, extras)
 
 
 class HTTPJSONHandler(logging.Handler):
@@ -388,25 +384,20 @@ class HTTPJSONHandler(logging.Handler):
         'stack_info', 'thread', 'threadName', 'exc_text'
     }
 
-    def __init__(self, url, extras=None, ignore_keys=None):
+    def __init__(self, url, extras=None):
         super().__init__()
         self._url = url
         self._extras = extras
-        self._ignore_keys = ignore_keys
 
     def _record_to_json(self, record):
-        def _can_send(key):
-            return not (
-                key.startswith('_') or key in HTTPJSONHandler.LOG_ATTRS or
-                (self._ignore_keys and key in self._ignore_keys)
-            )
-
         json_record = {
-            k: v for k, v in record.__dict__.items() if _can_send(k)
+            k: v for k, v in record.__dict__.items()
+            if not (k.startswith('_') or k in HTTPJSONHandler.LOG_ATTRS)
         }
         if self._extras:
             json_record.update({
-                k: v for k, v in self._extras.items() if _can_send(k)
+                k: v for k, v in self._extras.items()
+                if not (k.startswith('_') or k in HTTPJSONHandler.LOG_ATTRS)
             })
 
         return _xfmt(json_record).encode('utf-8')
@@ -578,11 +569,9 @@ class LoggerAdapter(logging.LoggerAdapter):
         for attr, alt_name in check_type.loggable_attrs():
             extra_name  = alt_name or attr
 
-            with suppress_deprecations():
-                # In case of AttributeError, i.e., the variable is undefined,
-                # we set the value to None
-                val = getattr(self.check, attr, None)
-
+            # In case of AttributeError, i.e., the variable is undefined, we
+            # set the value to None
+            val = getattr(self.check, attr, None)
             if attr in check_type.raw_params:
                 # Attribute is parameter, so format it
                 val = check_type.raw_params[attr].format(val)
@@ -590,6 +579,10 @@ class LoggerAdapter(logging.LoggerAdapter):
             self.extra[f'check_{extra_name}'] = val
 
         # Add special extras
+
+        # FIXME: As soon as `name` becomes a read-only property in 4.0, the
+        # following assignment will not be needed.
+        self.extra['check_name'] = self.extra['check_unique_name']
         self.extra['check_info'] = self.check.info()
         self.extra['check_job_completion_time'] = _format_time_rfc3339(
             time.localtime(self.extra['check_job_completion_time_unix']),
@@ -639,14 +632,14 @@ class LoggerAdapter(logging.LoggerAdapter):
 
             _WARN_ONCE.add(message)
 
-        message = f'WARNING: {message}'
+        message = f'{sys.argv[0]}: {message}'
         if self.colorize:
             message = color.colorize(message, color.YELLOW)
 
         super().warning(message, *args, **kwargs)
 
     def error(self, message, *args, **kwargs):
-        message = f'ERROR: {message}'
+        message = f'{sys.argv[0]}: {message}'
         if self.colorize:
             message = color.colorize(message, color.RED)
 
@@ -733,31 +726,3 @@ def getlogger():
 
 def getperflogger(check):
     return LoggerAdapter(_perf_logger, check)
-
-
-# Global framework profiler
-_profiler = TimeProfiler()
-
-
-def getprofiler():
-    return _profiler
-
-
-def time_function(fn):
-    '''Decorator for timing a function using the global profiler'''
-
-    def _fn(*args, **kwargs):
-        with _profiler.time_region(fn.__qualname__):
-            return fn(*args, **kwargs)
-
-    return _fn
-
-
-def time_function_noexit(fn):
-    '''Decorator for timing a function using the global profiler'''
-
-    def _fn(*args, **kwargs):
-        _profiler.enter_region(fn.__qualname__)
-        return fn(*args, **kwargs)
-
-    return _fn

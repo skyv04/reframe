@@ -36,11 +36,11 @@ class TestCase:
 
     def __init__(self, check, partition, environ):
         self._check_orig = check
-        self._check = check
-        self._partition = partition
-        self._environ = environ
+        self._check = copy.deepcopy(check)
+        self._partition = copy.deepcopy(partition)
+        self._environ = copy.deepcopy(environ)
+        self._check._case = weakref.ref(self)
         self._deps = []
-        self._is_ready = False
 
         # Incoming dependencies
         self.in_degree = 0
@@ -72,15 +72,6 @@ class TestCase:
         e = self.environ.name if self.environ else None
         return f'({c!r}, {p!r}, {e!r})'
 
-    def prepare(self):
-        '''Prepare test case for sending down the test pipeline'''
-        if self._is_ready:
-            return
-
-        self._check = copy.deepcopy(self._check)
-        self._check._case = weakref.ref(self)
-        self._is_ready = True
-
     @property
     def check(self):
         return self._check
@@ -106,15 +97,8 @@ class TestCase:
         return TestCase(self._check_orig, self._partition, self._environ)
 
 
-@logging.time_function
-def generate_testcases(checks, prepare=False):
-    '''Generate concrete test cases from checks.
-
-    If `prepare` is true then each of the cases will also be prepared for
-    being sent to the test pipeline. Note that setting this to true may slow down
-    the test case generation.
-
-    '''
+def generate_testcases(checks):
+    '''Generate concrete test cases from checks.'''
 
     rt = runtime.runtime()
     cases = []
@@ -123,11 +107,7 @@ def generate_testcases(checks, prepare=False):
                                                c.valid_prog_environs)
         for part, environs in valid_comb.items():
             for env in environs:
-                case = TestCase(c, part, env)
-                if prepare:
-                    case.prepare()
-
-                cases.append(case)
+                cases.append(TestCase(c, part, env))
 
     return cases
 
@@ -314,27 +294,21 @@ class RegressionTask:
             self.fail()
             raise TaskExit from e
 
-    @logging.time_function
     def setup(self, *args, **kwargs):
-        self.testcase.prepare()
         self._safe_call(self.check.setup, *args, **kwargs)
         self._notify_listeners('on_task_setup')
 
-    @logging.time_function
     def compile(self):
         self._safe_call(self.check.compile)
         self._notify_listeners('on_task_compile')
 
-    @logging.time_function
     def compile_wait(self):
         self._safe_call(self.check.compile_wait)
 
-    @logging.time_function
     def run(self):
         self._safe_call(self.check.run)
         self._notify_listeners('on_task_run')
 
-    @logging.time_function
     def run_complete(self):
         done = self._safe_call(self.check.run_complete)
         if done:
@@ -343,7 +317,6 @@ class RegressionTask:
 
         return done
 
-    @logging.time_function
     def compile_complete(self):
         done = self._safe_call(self.check.compile_complete)
         if done:
@@ -351,20 +324,16 @@ class RegressionTask:
 
         return done
 
-    @logging.time_function
     def run_wait(self):
         self._safe_call(self.check.run_wait)
         self.zombie = False
 
-    @logging.time_function
     def sanity(self):
         self._safe_call(self.check.sanity)
 
-    @logging.time_function
     def performance(self):
         self._safe_call(self.check.performance)
 
-    @logging.time_function
     def finalize(self):
         try:
             jsonfile = os.path.join(self.check.stagedir, '.rfm_testcase.json')
@@ -378,7 +347,6 @@ class RegressionTask:
         self._current_stage = 'finalize'
         self._notify_listeners('on_task_success')
 
-    @logging.time_function
     def cleanup(self, *args, **kwargs):
         self._safe_call(self.check.cleanup, *args, **kwargs)
 
@@ -416,10 +384,9 @@ class RegressionTask:
     def info(self):
         '''Return an info string about this task.'''
         name = self.check.display_name
-        hashcode = self.check.hashcode
         part = self.testcase.partition.fullname
         env  = self.testcase.environ.name
-        return f'{name} /{hashcode} @{part}+{env}'
+        return f'{name} @{part}+{env}'
 
 
 class TaskEventListener(abc.ABC):
@@ -492,7 +459,6 @@ class Runner:
     def stats(self):
         return self._stats
 
-    @logging.time_function
     def runall(self, testcases, restored_cases=None):
         num_checks = len({tc.check.unique_name for tc in testcases})
         self._printer.separator('short double line',

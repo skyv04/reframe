@@ -20,7 +20,6 @@ from reframe.core.exceptions import (BuildError, PipelineError, ReframeError,
                                      PerformanceError, SanityError,
                                      SkipTestError, ReframeSyntaxError)
 from reframe.core.meta import make_test
-from reframe.core.warnings import ReframeDeprecationWarning
 
 
 def _run(test, partition, prgenv):
@@ -160,9 +159,9 @@ def test_eq():
 
 def test_environ_setup(hellotest, local_exec_ctx):
     # Use test environment for the regression check
-    hellotest.env_vars = {'_FOO_': '1', '_BAR_': '2'}
+    hellotest.variables = {'_FOO_': '1', '_BAR_': '2'}
     hellotest.setup(*local_exec_ctx)
-    for k in hellotest.env_vars.keys():
+    for k in hellotest.variables.keys():
         assert k not in os.environ
 
 
@@ -1211,7 +1210,7 @@ def test_require_deps(HelloTest, local_exec_ctx):
         def setz(self, T0):
             self.z = T0().x + 2
 
-    cases = executors.generate_testcases([T0(), T1()], prepare=True)
+    cases = executors.generate_testcases([T0(), T1()])
     deps, _ = dependencies.build_deps(cases)
     for c in dependencies.toposort(deps):
         _run(*c)
@@ -1223,6 +1222,73 @@ def test_require_deps(HelloTest, local_exec_ctx):
         elif t.name == 'T1':
             assert t.y == 2
             assert t.z == 3
+
+
+# All the following tests about naming are for the deprecated
+# @parameterized_test decorator
+
+def test_regression_test_name():
+    class MyTest(rfm.RegressionTest):
+        def __init__(self, a, b):
+            self.a = a
+            self.b = b
+
+    test = MyTest(1, 2)
+    assert os.path.abspath(os.path.dirname(__file__)) == test.prefix
+    assert 'MyTest_1_2' == test.name
+
+
+def test_strange_test_names():
+    class C:
+        def __init__(self, a):
+            self.a = a
+
+        def __repr__(self):
+            return f'C({self.a})'
+
+    class MyTest(rfm.RegressionTest):
+        def __init__(self, a, b):
+            self.a = a
+            self.b = b
+
+    test = MyTest('(a*b+c)/12', C(33))
+    assert 'MyTest__a_b_c__12_C_33_' == test.name
+
+
+def test_name_user_inheritance():
+    class MyBaseTest(rfm.RegressionTest):
+        def __init__(self, a, b):
+            self.a = a
+            self.b = b
+
+    class MyTest(MyBaseTest):
+        def __init__(self):
+            super().__init__(1, 2)
+
+    test = MyTest()
+    assert 'MyTest' == test.name
+
+
+def test_name_runonly_test():
+    class MyTest(rfm.RunOnlyRegressionTest):
+        def __init__(self, a, b):
+            self.a = a
+            self.b = b
+
+    test = MyTest(1, 2)
+    assert os.path.abspath(os.path.dirname(__file__)) == test.prefix
+    assert 'MyTest_1_2' == test.name
+
+
+def test_name_compileonly_test():
+    class MyTest(rfm.CompileOnlyRegressionTest):
+        def __init__(self, a, b):
+            self.a = a
+            self.b = b
+
+    test = MyTest(1, 2)
+    assert os.path.abspath(os.path.dirname(__file__)) == test.prefix
+    assert 'MyTest_1_2' == test.name
 
 
 def test_trap_job_errors_without_sanity_patterns(local_exec_ctx):
@@ -1316,49 +1382,6 @@ def dummytest(testsys_exec_ctx, perf_file, sanity_file):
     yield MyTest()
 
 
-@pytest.fixture
-def dummytest_modern(testsys_exec_ctx, perf_file, sanity_file):
-    '''Modern version of the dummytest above'''
-
-    class MyTest(rfm.RunOnlyRegressionTest):
-        perf_file = perf_file
-        reference = {
-            'testsys': {
-                'value1': (1.4, -0.1, 0.1, None),
-                'value2': (1.7, -0.1, 0.1, None),
-            },
-            'testsys:gpu': {
-                'value3': (3.1, -0.1, 0.1, None),
-            }
-        }
-
-        @sanity_function
-        def validate(self):
-            return sn.assert_found(r'result = success', sanity_file)
-
-        @performance_function('unit')
-        def value1(self):
-            return sn.extractsingle(r'perf1 = (\S+)', perf_file, 1, float)
-
-        @performance_function('unit')
-        def value2(self):
-            return sn.extractsingle(r'perf2 = (\S+)', perf_file, 1, float)
-
-        @performance_function('unit')
-        def value3(self):
-            return sn.extractsingle(r'perf3 = (\S+)', perf_file, 1, float)
-
-    yield MyTest()
-
-
-@pytest.fixture(params=['classic', 'modern'])
-def dummy_perftest(request, dummytest, dummytest_modern):
-    if request.param == 'modern':
-        return dummytest_modern
-    else:
-        return dummytest
-
-
 def test_sanity_success(dummytest, sanity_file, perf_file, dummy_gpu_exec_ctx):
     sanity_file.write_text('result = success\n')
     perf_file.write_text('perf1 = 1.3\n'
@@ -1434,7 +1457,7 @@ def test_reference_unknown_tag(dummytest, sanity_file,
             'foo': (3.1, -0.1, 0.1, None),
         }
     }
-    with pytest.raises(PerformanceError):
+    with pytest.raises(SanityError):
         _run_sanity(dummytest, *dummy_gpu_exec_ctx)
 
 
@@ -1498,27 +1521,6 @@ def test_reference_tag_resolution(dummytest, sanity_file,
         }
     }
     _run_sanity(dummytest, *dummy_gpu_exec_ctx)
-
-
-def test_required_reference(dummy_perftest, sanity_file,
-                            perf_file, dummy_gpu_exec_ctx):
-    sanity_file.write_text('result = success\n')
-    perf_file.write_text('perf1 = 1.3\n'
-                         'perf2 = 1.8\n'
-                         'perf3 = 3.3\n')
-
-    dummy_perftest.require_reference = True
-    dummy_perftest.reference = {
-        'testsys:login': {
-            'value1': (1.4, -0.1, 0.1, None),
-            'value3': (3.1, -0.1, 0.1, None),
-        },
-        'foo': {
-            'value2': (1.7, -0.1, 0.1, None)
-        }
-    }
-    with pytest.raises(PerformanceError):
-        _run_sanity(dummy_perftest, *dummy_gpu_exec_ctx)
 
 
 def test_performance_invalid_value(dummytest, sanity_file,
@@ -1892,16 +1894,25 @@ def test_set_var_default():
     assert x.bar == 100
 
 
-def _test_variables_deprecation():
-    with pytest.warns(ReframeDeprecationWarning):
-        class _X(rfm.RunOnlyRegressionTest):
-            variables = {'FOO': '1'}
-
-    test = _X()
-    print('===')
-    assert test.env_vars['FOO'] == '1'
+def test_set_name_deprecation():
+    from reframe.core.warnings import ReframeDeprecationWarning
 
     with pytest.warns(ReframeDeprecationWarning):
-        test.variables['BAR'] == '2'
+        class _X(rfm.RegressionTest):
+            @run_after('init')
+            def set_name(self):
+                self.name = 'foo'
 
-    assert test.env_vars['BAR'] == '2'
+        x = _X()
+
+    assert x.name == 'foo'
+    assert x.unique_name == 'foo'
+
+    with pytest.warns(ReframeDeprecationWarning):
+        class _X(rfm.RegressionTest):
+            name = 'foo'
+
+        x = _X()
+
+    assert x.name == 'foo'
+    assert x.unique_name == 'foo'

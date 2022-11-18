@@ -50,7 +50,7 @@ site_configuration = {
                     'descr': 'Login nodes',
                     'scheduler': 'local',
                     'launcher': 'local',
-                    'environs': ['builtin', 'gnu', 'intel', 'nvidia', 'cray'],
+                    'environs': ['builtin', 'gnu', 'intel', 'pgi', 'cray'],
                 },
                 # rfmdocstart: all-partitions
                 # rfmdocstart: gpu-partition
@@ -60,7 +60,7 @@ site_configuration = {
                     'scheduler': 'slurm',
                     'launcher': 'srun',
                     'access': ['-C gpu', '-A csstaff'],
-                    'environs': ['gnu', 'intel', 'nvidia', 'cray'],
+                    'environs': ['gnu', 'intel', 'pgi', 'cray'],
                     'max_jobs': 100,
                     'resources': [
                         {
@@ -86,7 +86,7 @@ site_configuration = {
                     'scheduler': 'slurm',
                     'launcher': 'srun',
                     'access': ['-C mc', '-A csstaff'],
-                    'environs': ['gnu', 'intel', 'nvidia', 'cray'],
+                    'environs': ['gnu', 'intel', 'pgi', 'cray'],
                     'max_jobs': 100,
                     'resources': [
                         {
@@ -117,8 +117,8 @@ site_configuration = {
     'environments': [
         {
             'name': 'gnu',
-            'cc': 'gcc-12',
-            'cxx': 'g++-12',
+            'cc': 'gcc-9',
+            'cxx': 'g++-9',
             'ftn': 'gfortran-9'
         },
         {
@@ -146,8 +146,8 @@ site_configuration = {
             'target_systems': ['daint']
         },
         {
-            'name': 'nvidia',
-            'modules': ['PrgEnv-nvidia'],
+            'name': 'pgi',
+            'modules': ['PrgEnv-pgi'],
             'cc': 'cc',
             'cxx': 'CC',
             'ftn': 'ftn',

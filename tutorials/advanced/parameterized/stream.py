@@ -15,13 +15,13 @@ class StreamMultiSysTest(rfm.RegressionTest):
     ntimes = variable(int)
 
     valid_systems = ['*']
-    valid_prog_environs = ['cray', 'gnu', 'intel', 'nvidia']
+    valid_prog_environs = ['cray', 'gnu', 'intel', 'pgi']
     prebuild_cmds = [
         'wget https://raw.githubusercontent.com/jeffhammond/STREAM/master/stream.c'  # noqa: E501
     ]
     build_system = 'SingleSource'
     sourcepath = 'stream.c'
-    env_vars = {
+    variables = {
         'OMP_NUM_THREADS': '4',
         'OMP_PLACES': 'cores'
     }
@@ -36,7 +36,7 @@ class StreamMultiSysTest(rfm.RegressionTest):
         'cray':  ['-fopenmp', '-O3', '-Wall'],
         'gnu':   ['-fopenmp', '-O3', '-Wall'],
         'intel': ['-qopenmp', '-O3', '-Wall'],
-        'nvidia':   ['-mp', '-O3']
+        'pgi':   ['-mp', '-O3']
     })
 
     # Number of cores for each system
@@ -48,7 +48,7 @@ class StreamMultiSysTest(rfm.RegressionTest):
     })
 
     @run_after('init')
-    def setup_build(self):
+    def set_variables(self):
         self.array_size = (self.num_bytes >> 3) // 3
         self.ntimes = 100*1024*1024 // self.array_size
         self.descr = (
@@ -67,7 +67,7 @@ class StreamMultiSysTest(rfm.RegressionTest):
     def set_num_threads(self):
         num_threads = self.cores.get(self.current_partition.fullname, 1)
         self.num_cpus_per_task = num_threads
-        self.env_vars = {
+        self.variables = {
             'OMP_NUM_THREADS': str(num_threads),
             'OMP_PLACES': 'cores'
         }

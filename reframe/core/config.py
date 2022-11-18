@@ -16,6 +16,7 @@ import tempfile
 
 import reframe
 import reframe.core.settings as settings
+import reframe.core.azure as azure
 import reframe.utility as util
 from reframe.core.environments import normalize_module_list
 from reframe.core.exceptions import ConfigError, ReframeFatalError
@@ -299,9 +300,30 @@ class _SiteConfig:
         return _SiteConfig(config, filename)
 
     def _detect_system(self):
+
+        if azure.check_if_azure_vm() == True:
+            getlogger().debug(
+                f'Detecting system using Azure'
+            )
+            # Get the system name
+            system_info = azure.get_vm_info(self._site_config['systems'])
+            #system_name, vm_type, vm_data = azure.get_vm_info(self._site_config['systems'])
+            print("System Name: {}".format(system_info[0]))
+            print("VM Type: {}".format(system_info[1]))
+            print("VM Data: {}".format(system_info[2]))
+            for idx,system in enumerate(self._site_config['systems']):
+                print("idx: {}, system: {}".format(idx,system["name"]))
+                if system_info[0] == system["name"]:
+                    print("Setting system info")
+                    self._site_config['systems'][idx]['node_data'] = system_info[2]
+            return system_info[0]
+
+            #system_data = azure.get_system_data(vm_type, vm_data_file)
+
         getlogger().debug(
             f'Detecting system using method: {self._autodetect_meth!r}'
         )
+
         hostname = _hostname(
             self._autodetect_opts[self._autodetect_meth]['use_fqdn'],
             self._autodetect_opts[self._autodetect_meth]['use_xthostname'],
@@ -347,51 +369,12 @@ class _SiteConfig:
 
                 partition_names.add(partname)
 
-        def _warn_variables(config, opt_path):
-            opt_path = '/'.join(opt_path + ['variables'])
-            if 'env_vars' in config and 'variables' in config:
-                getlogger().warning(
-                    f"configuration option {opt_path!r}: "
-                    f"both 'env_vars' and 'variables' are defined; "
-                    f"'variables' will be ignored"
-                )
-            elif 'variables' in config:
-                getlogger().warning(
-                    f"configuration option {opt_path!r}: "
-                    f"'variables' is deprecated; please use 'env_vars' instead"
-                )
-                config['env_vars'] = config['variables']
-
-        # Warn about the deprecated `variables` and convert them internally to
-        # `env_vars`
-        for system in self._site_config['systems']:
-            sysname = system['name']
-            opt_path = ['systems', f'@{sysname}']
-            _warn_variables(system, opt_path)
-            for part in system['partitions']:
-                partname = part['name']
-                opt_path += ['partitions', f'@{partname}']
-                _warn_variables(part, opt_path)
-                for i, cp in enumerate(part.get('container_platforms', [])):
-                    opt_path += ['container_platforms', str(i)]
-                    _warn_variables(cp, opt_path)
-                    opt_path.pop()
-                    opt_path.pop()
-
-                opt_path.pop()
-                opt_path.pop()
-
-        for env in self._site_config['environments']:
-            envname = env['name']
-            opt_path = ['environments', f'@{envname}']
-            _warn_variables(env, opt_path)
-
     def select_subconfig(self, system_fullname=None,
                          ignore_resolve_errors=False):
         # First look for the current subconfig in the cache; if not found,
         # generate it and cache it
         system_fullname = system_fullname or self._detect_system()
-        getlogger().debug2(f'Selecting subconfig for {system_fullname!r}')
+        getlogger().debug(f'Selecting subconfig for {system_fullname!r}')
 
         self._local_system = system_fullname
         if system_fullname in self._subconfigs:

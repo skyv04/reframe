@@ -4,18 +4,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import inspect
-import shutil
 import traceback
 
 import reframe.core.runtime as rt
 import reframe.core.exceptions as errors
 import reframe.utility as util
-from reframe.core.warnings import suppress_deprecations
-
-
-def _getattr(obj, attr):
-    with suppress_deprecations():
-        return getattr(obj, attr)
 
 
 class TestStats:
@@ -61,7 +54,7 @@ class TestStats:
         if not rt.runtime().current_run:
             return ''
 
-        line_width = shutil.get_terminal_size()[0]
+        line_width = 78
         report = [line_width * '=']
         report.append('SUMMARY OF RETRIES')
         report.append(line_width * '-')
@@ -113,12 +106,11 @@ class TestStats:
                     ],
                     'description': check.descr,
                     'display_name': check.display_name,
+                    'filename': inspect.getfile(type(check)),
                     'environment': None,
                     'fail_phase': None,
                     'fail_reason': None,
-                    'filename': inspect.getfile(type(check)),
                     'fixture': check.is_fixture(),
-                    'hash': check.hashcode,
                     'jobid': None,
                     'job_stderr': None,
                     'job_stdout': None,
@@ -205,7 +197,7 @@ class TestStats:
                 for name, var in test_cls.var_space.items():
                     if var.is_loggable():
                         try:
-                            entry['check_vars'][name] = _getattr(check, name)
+                            entry['check_vars'][name] = getattr(check, name)
                         except AttributeError:
                             entry['check_vars'][name] = '<undefined>'
 
@@ -213,7 +205,7 @@ class TestStats:
                 test_cls = type(check)
                 for name, param in test_cls.param_space.items():
                     if param.is_loggable():
-                        entry['check_params'][name] = _getattr(check, name)
+                        entry['check_params'][name] = getattr(check, name)
 
                 testcases.append(entry)
 
@@ -229,7 +221,7 @@ class TestStats:
         return self._run_data
 
     def print_failure_report(self, printer, rerun_info=True):
-        line_width = shutil.get_terminal_size()[0]
+        line_width = 78
         printer.info(line_width * '=')
         printer.info('SUMMARY OF FAILURES')
         run_report = self.json()[-1]
@@ -260,7 +252,15 @@ class TestStats:
             printer.info(f"  * Maintainers: {r['maintainers']}")
             printer.info(f"  * Failing phase: {r['fail_phase']}")
             if rerun_info and not r['fixture']:
-                printer.info(f"  * Rerun with '-n /{r['hash']}"
+                if rt.runtime().get_option('general/0/compact_test_names'):
+                    cls = r['display_name'].split(' ')[0]
+                    variant = r['unique_name'].replace(cls, '')
+                    variant = variant.replace('_', '@')
+                    nameoptarg = cls + variant
+                else:
+                    nameoptarg = r['unique_name']
+
+                printer.info(f"  * Rerun with '-n {nameoptarg}"
                              f" -p {r['environment']} --system "
                              f"{r['system']} -r'")
 
@@ -290,7 +290,7 @@ class TestStats:
 
             failures[tf.failed_stage].append(f)
 
-        line_width = shutil.get_terminal_size()[0]
+        line_width = 78
         stats_start = line_width * '='
         stats_title = 'FAILURE STATISTICS'
         stats_end = line_width * '-'
@@ -319,63 +319,42 @@ class TestStats:
                 printer.info(line)
 
     def performance_report(self):
-        width = shutil.get_terminal_size()[0]
-        lines = ['', width*'=', 'PERFORMANCE REPORT', width*'-']
+        # FIXME: Adapt this function to use the JSON report
 
-        # Collect all the records from performance tests
-        perf_records = {}
-        for run in self.json():
-            for tc in run['testcases']:
-                if tc['perfvars']:
-                    key = tc['unique_name']
-                    perf_records.setdefault(key, [])
-                    perf_records[key].append(tc)
+        line_width = 78
+        report_start = line_width * '='
+        report_title = 'PERFORMANCE REPORT'
+        report_end = line_width * '-'
+        report_body = []
+        previous_name = ''
+        previous_part = ''
+        for t in self.tasks():
+            if t.check.perfvalues.keys():
+                if t.check.unique_name != previous_name:
+                    report_body.append(line_width * '-')
+                    report_body.append(t.check.display_name)
+                    previous_name = t.check.unique_name
 
-        if not perf_records:
-            return ''
+                if t.check.current_partition.fullname != previous_part:
+                    report_body.append(
+                        f'- {t.check.current_partition.fullname}')
+                    previous_part = t.check.current_partition.fullname
 
-        interesting_vars = {
-            'num_cpus_per_task',
-            'num_gpus_per_node',
-            'num_tasks',
-            'num_tasks_per_core',
-            'num_tasks_per_node',
-            'num_tasks_per_socket',
-            'use_multithreading'
-        }
+                report_body.append(f'   - {t.check.current_environ}')
+                report_body.append(f'      * num_tasks: {t.check.num_tasks}')
 
-        for testcases in perf_records.values():
-            for tc in testcases:
-                name = tc['display_name']
-                hash = tc['hash']
-                env  = tc['environment']
-                part = tc['system']
-                lines.append(f'[{name} /{hash} @{part}:{env}]')
-                for v in interesting_vars:
-                    val = tc['check_vars'][v]
-                    if val is not None:
-                        lines.append(f'  {v}: {val}')
+            for key, ref in t.check.perfvalues.items():
+                var = key.split(':')[-1]
+                val = ref[0]
+                try:
+                    unit = ref[4]
+                except IndexError:
+                    unit = '(no unit specified)'
 
-                lines.append('  performance:')
-                for v in tc['perfvars']:
-                    name = v['name']
-                    val  = v['value']
-                    ref  = v['reference']
-                    unit = v['unit']
-                    lthr = v['thres_lower']
-                    uthr = v['thres_upper']
-                    if lthr is not None:
-                        lthr *= 100
-                    else:
-                        lthr = '-inf'
+                report_body.append(f'      * {var}: {val} {unit}')
 
-                    if uthr is not None:
-                        uthr *= 100
-                    else:
-                        uthr = 'inf'
+        if report_body:
+            return '\n'.join([report_start, report_title, *report_body,
+                              report_end])
 
-                    lines.append(f'    - {name}: {val} {unit} '
-                                 f'(r: {ref} {unit} l: {lthr}% u: +{uthr}%)')
-
-        lines.append(width*'-')
-        return '\n'.join(lines)
+        return ''

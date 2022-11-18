@@ -6,6 +6,7 @@
 import pytest
 
 import reframe.core.containers as containers
+import reframe.core.warnings as warn
 
 
 @pytest.fixture(params=[
@@ -13,8 +14,7 @@ import reframe.core.containers as containers
     'Sarus', 'Sarus+nocommand', 'Sarus+nopull', 'Sarus+mpi', 'Sarus+load',
     'Shifter', 'Shifter+nocommand', 'Shifter+mpi', 'Shifter+nopull',
     'Shifter+load',
-    'Singularity', 'Singularity+nocommand', 'Singularity+cuda',
-    'Apptainer', 'Apptainer+nocommand', 'Apptainer+cuda'
+    'Singularity', 'Singularity+nocommand', 'Singularity+cuda'
 ])
 def container_variant(request):
     return request.param
@@ -102,31 +102,18 @@ def expected_cmd_mount_points(container_variant):
                 '--mount=type=bind,source="/path/two",destination="/two" '
                 '--mount=type=bind,source="/foo",destination="/rfm_workdir" '
                 'load/library/image:tag cmd')
-    elif container_variant == 'Singularity':
+    elif container_variant in {'Singularity', 'Singularity+nopull'}:
         return ('singularity exec -B"/path/one:/one" '
                 '-B"/path/two:/two" -B"/foo:/rfm_workdir" '
-                '--pwd /rfm_workdir image:tag cmd')
+                '-W /rfm_workdir image:tag cmd')
     elif container_variant == 'Singularity+cuda':
         return ('singularity exec -B"/path/one:/one" '
                 '-B"/path/two:/two" -B"/foo:/rfm_workdir" --nv '
-                '--pwd /rfm_workdir image:tag cmd')
+                '-W /rfm_workdir image:tag cmd')
     elif container_variant == 'Singularity+nocommand':
         return ('singularity run -B"/path/one:/one" '
                 '-B"/path/two:/two" -B"/foo:/rfm_workdir" '
-                '--pwd /rfm_workdir image:tag')
-    elif container_variant == 'Apptainer':
-        return ('apptainer exec -B"/path/one:/one" '
-                '-B"/path/two:/two" -B"/foo:/rfm_workdir" '
-                '--pwd /rfm_workdir image:tag cmd')
-    elif container_variant == 'Apptainer+cuda':
-        return ('apptainer exec -B"/path/one:/one" '
-                '-B"/path/two:/two" -B"/foo:/rfm_workdir" --nv '
-                '--pwd /rfm_workdir image:tag cmd')
-    elif container_variant == 'Apptainer+nocommand':
-        return ('apptainer run -B"/path/one:/one" '
-                '-B"/path/two:/two" -B"/foo:/rfm_workdir" '
-                '--pwd /rfm_workdir image:tag')
-
+                '-W /rfm_workdir image:tag')
 
 
 @pytest.fixture
@@ -194,7 +181,7 @@ def expected_cmd_run_opts(container_variant):
                 '--mount=type=bind,source="/path/one",destination="/one" '
                 '--mount=type=bind,source="/foo",destination="/rfm_workdir" '
                 '--mpi --foo --bar image:tag cmd')
-    elif container_variant == 'Singularity':
+    elif container_variant in {'Singularity'}:
         return ('singularity exec -B"/path/one:/one" -B"/foo:/rfm_workdir" '
                 '--foo --bar image:tag cmd')
     elif container_variant == 'Singularity+cuda':
@@ -202,15 +189,6 @@ def expected_cmd_run_opts(container_variant):
                 '--nv --foo --bar image:tag cmd')
     elif container_variant == 'Singularity+nocommand':
         return ('singularity run -B"/path/one:/one" -B"/foo:/rfm_workdir" '
-                '--foo --bar image:tag')
-    elif container_variant == 'Apptainer':
-        return ('apptainer exec -B"/path/one:/one" -B"/foo:/rfm_workdir" '
-                '--foo --bar image:tag cmd')
-    elif container_variant == 'Apptainer+cuda':
-        return ('apptainer exec -B"/path/one:/one" -B"/foo:/rfm_workdir" '
-                '--nv --foo --bar image:tag cmd')
-    elif container_variant == 'Apptainer+nocommand':
-        return ('apptainer run -B"/path/one:/one" -B"/foo:/rfm_workdir" '
                 '--foo --bar image:tag')
 
 
@@ -268,9 +246,6 @@ def expected_run_with_commands(container_variant_noopt):
     elif container_variant_noopt == 'Singularity':
         return ("singularity exec -B\"/foo:/rfm_workdir\" "
                 "--foo image:tag bash -c 'cmd1; cmd2'")
-    elif container_variant_noopt == 'Apptainer':
-        return ("apptainer exec -B\"/foo:/rfm_workdir\" "
-                "--foo image:tag bash -c 'cmd1; cmd2'")
 
 
 @pytest.fixture
@@ -291,11 +266,18 @@ def expected_run_with_workdir(container_variant_noopt):
             '--foo image:tag cmd1'
         )
     elif container_variant_noopt == 'Singularity':
-        return ('singularity exec -B\"/foo:/rfm_workdir\" --pwd foodir '
+        return ('singularity exec -B\"/foo:/rfm_workdir\" -W foodir '
                 '--foo image:tag cmd1')
-    elif container_variant_noopt == 'Apptainer':
-        return ('apptainer exec -B\"/foo:/rfm_workdir\" --pwd foodir '
-                '--foo image:tag cmd1')
+
+
+def test_run_with_commands(container_platform_with_opts,
+                           expected_run_with_commands):
+    container_platform_with_opts.workdir = None
+    with pytest.warns(warn.ReframeDeprecationWarning):
+        container_platform_with_opts.commands = ['cmd1', 'cmd2']
+
+    found_commands = container_platform_with_opts.launch_command('/foo')
+    assert found_commands == expected_run_with_commands
 
 
 def test_run_with_workdir(container_platform_with_opts,

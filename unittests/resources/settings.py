@@ -51,7 +51,7 @@ site_configuration = {
             'prefix': '.rfm_testing',
             'resourcesdir': '.rfm_testing/resources',
             'modules': ['foo/1.0'],
-            'env_vars': [['FOO_CMD', 'foobar']],
+            'variables': [['FOO_CMD', 'foobar']],
             'partitions': [
                 {
                     'name': 'login',
@@ -76,7 +76,7 @@ site_configuration = {
                     'modules': [
                         {'name': 'foogpu', 'collection': False, 'path': '/foo'}
                     ],
-                    'env_vars': [['FOO_GPU', 'yes']],
+                    'variables': [['FOO_GPU', 'yes']],
                     'resources': [
                         {
                             'name': 'gpu',
@@ -303,6 +303,10 @@ site_configuration = {
         {
             'check_search_path': ['c:d'],
             'target_systems': ['testsys']
+        },
+        {
+            'compact_test_names': True,
+            'target_systems': ['sys1']
         },
         {
             'git_timeout': 10,
